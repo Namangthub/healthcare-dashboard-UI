@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import HealthcareDashboard from './components/HealthcareDashboard.jsx';
+import HealthcareDashboard from './components/HealthCareDashboard.jsx';
 import axios from "axios"
 function App() {
   const [count, setCount] = useState(0)
