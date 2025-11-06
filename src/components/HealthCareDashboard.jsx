@@ -145,7 +145,7 @@ const StaffCard = ({ staff }) => (
   </div>
 );
 
-export default function HealthcareDashboard() {
+function HealthcareDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -251,5 +251,6 @@ export default function HealthcareDashboard() {
       </div>
     </div>
   );
-}
+};
+export default HealthcareDashboard;
 
