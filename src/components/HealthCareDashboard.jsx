@@ -54,46 +54,109 @@ const HealthcareDashboard = () => {
   };
 
   // Initial data load
-// Replace your useEffect with this corrected version:
+  useEffect(() => {
+    fetchData('/overview', 'overview', setOverviewStats);
+    fetchData('/departments', 'departments', (data) => {
+  const mapped = data.map(dept => ({
+    ...dept,
+    total_patients: dept.totalPatients,
+    total_staff: (dept.staff?.doctors || 0) + (dept.staff?.nurses || 0) + (dept.staff?.support || 0),
+    capacity: dept.capacity,
+    occupancy_rate: dept.currentOccupancy,
+    department_head: dept.department_head || 'N/A',
+  }));
+  setDepartments(mapped);
+});
 
-useEffect(() => {
-  fetchData('/overview', 'overview', setOverviewStats);
-  
-  // Fixed departments fetch with proper occupancy calculation
-  fetchData('/departments', 'departments', (data) => {
-    const mapped = data.map(dept => {
-      const totalPatients = dept.totalPatients || 0;
-      const capacity = dept.capacity || 1;
-      
-      // Calculate occupancy rate properly - should never exceed 100%
-      // Use the calculated value, not the backend's currentOccupancy
-      const calculatedOccupancy = Math.min(
-        Math.round((totalPatients / capacity) * 100),
-        100
-      );
-      
-      return {
-        ...dept,
-        total_patients: totalPatients,
-        total_staff: (dept.staff?.doctors || 0) + (dept.staff?.nurses || 0) + (dept.staff?.support || 0),
-        capacity: capacity,
-        occupancy_rate: calculatedOccupancy, // Now correctly calculated
-        department_head: dept.department_head || 'N/A',
-      };
-    });
-    setDepartments(mapped);
+    fetchData('/patients/active', 'patients', setPatients);
+    fetchData('/staff', 'staff', setStaff);
+fetchData('/appointments', 'appointments', (data) => {
+  // ✅ Filter: only doctor appointments
+  const doctorAppointments = data.filter(
+    (appt) => appt.doctorName && appt.doctorName !== "N/A"
+  );
+
+  // ✅ Update appointments table
+  setAppointments(doctorAppointments);
+
+  // ✅ 1. Group by Month (Trends)
+  const monthMap = {};
+  doctorAppointments.forEach((item) => {
+    const date = new Date(item.date);
+    const month = date.toLocaleString("default", { month: "short", year: "numeric" });
+
+    if (!monthMap[month]) {
+      monthMap[month] = { total: 0, completed: 0, cancelled: 0, scheduled: 0 };
+    }
+
+    monthMap[month].total++;
+    if (item.status === "Completed") monthMap[month].completed++;
+    if (item.status === "Cancelled") monthMap[month].cancelled++;
+    if (item.status === "Scheduled") monthMap[month].scheduled++;
   });
 
-  fetchData('/patients/active', 'patients', setPatients);
-  fetchData('/staff', 'staff', setStaff);
-  fetchData('/appointments', 'appointments', setAppointments);
-  fetchData('/vitals', 'vitals', setVitalAlerts);
-  fetchData('/activities/recent', 'activities', setRecentActivities);
-  fetchData('/quality', 'quality', setQualityMetrics);
-  fetchData('/demographics', 'demographics', setDemographics);
-  fetchData('/inventory', 'inventory', setInventory);
-  fetchData('/financial/year/2025', 'financial', setFinancialData);
-}, []);
+  const trends = Object.entries(monthMap).map(([month, stats]) => ({
+    month,
+    ...stats,
+  }));
+
+  // ✅ 2. Group by Doctor (for Doctor Chart)
+  const doctorMap = {};
+  doctorAppointments.forEach((item) => {
+    const doctor = item.doctorName || "Unknown Doctor";
+    if (!doctorMap[doctor]) {
+      doctorMap[doctor] = { totalAppointments: 0, completed: 0, cancelled: 0, scheduled: 0 };
+    }
+
+    doctorMap[doctor].totalAppointments++;
+    if (item.status === "Completed") doctorMap[doctor].completed++;
+    if (item.status === "Cancelled") doctorMap[doctor].cancelled++;
+    if (item.status === "Scheduled") doctorMap[doctor].scheduled++;
+  });
+
+  const doctorStats = Object.entries(doctorMap).map(([doctor, stats]) => ({
+    doctor,
+    ...stats,
+  }));
+
+  // ✅ Set Data
+  setAppointmentTrends(trends);
+  setAppointmentTypes(doctorStats); // renamed variable reused for chart
+});
+
+
+
+
+    fetchData('/vitals', 'vitals', setVitalAlerts);
+    fetchData('/activities/recent', 'activities', setRecentActivities);
+    fetchData('/quality', 'quality', setQualityMetrics);
+    fetchData('/demographics', 'demographics', setDemographics);
+    fetchData('/inventory', 'inventory', setInventory);
+    // fetch raw, store raw and attempt a best-effort map to { department, revenue }
+fetchData('/financial/department', 'deptRevenue', (res) => {
+  console.log('raw dept revenue response:', res);
+  // response format from your backend: { message: "...", data: [...] }
+  const arr = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
+  setRawDeptRevenue(arr);
+
+  // immediate map attempt (departments might not be loaded yet)
+  const mapped = arr.map(item => {
+    // find department name from previously fetched `departments` state
+    const deptObj = departments.find(d => 
+      // compare common id shapes (number/string)
+      String(d.department_id) === String(item.department_id)
+    );
+    const name = deptObj?.name || (item.department_id === null ? 'All Departments' : `Dept ${item.department_id}`);
+    return {
+      department: name,
+      revenue: parseFloat(item.total_revenue) || 0
+    };
+  });
+
+  setDeptRevenue(mapped);
+});
+
+  }, []);
 
   // Refetch patients on filter change
   useEffect(() => {
