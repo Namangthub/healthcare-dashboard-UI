@@ -12,6 +12,9 @@ const HealthcareDashboard = () => {
   const [dateRange, setDateRange] = useState('month');
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
+  const [deptRevenue, setDeptRevenue] = useState([]);  
+  const [rawDeptRevenue, setRawDeptRevenue] = useState([]);
+
 
   // State for all data
   const [overviewStats, setOverviewStats] = useState(null);
@@ -71,7 +74,30 @@ const HealthcareDashboard = () => {
     fetchData('/quality', 'quality', setQualityMetrics);
     fetchData('/demographics', 'demographics', setDemographics);
     fetchData('/inventory', 'inventory', setInventory);
-    fetchData('/financial/year/2025', 'financial', setFinancialData);
+    // fetch raw, store raw and attempt a best-effort map to { department, revenue }
+fetchData('/financial/department', 'deptRevenue', (res) => {
+  console.log('raw dept revenue response:', res);
+  // response format from your backend: { message: "...", data: [...] }
+  const arr = (res && res.data) ? res.data : (Array.isArray(res) ? res : []);
+  setRawDeptRevenue(arr);
+
+  // immediate map attempt (departments might not be loaded yet)
+  const mapped = arr.map(item => {
+    // find department name from previously fetched `departments` state
+    const deptObj = departments.find(d => 
+      // compare common id shapes (number/string)
+      String(d.department_id) === String(item.department_id)
+    );
+    const name = deptObj?.name || (item.department_id === null ? 'All Departments' : `Dept ${item.department_id}`);
+    return {
+      department: name,
+      revenue: parseFloat(item.total_revenue) || 0
+    };
+  });
+
+  setDeptRevenue(mapped);
+});
+
   }, []);
 
   // Refetch patients on filter change
@@ -99,6 +125,22 @@ const HealthcareDashboard = () => {
       <p className="text-sm">{message}</p>
     </div>
   );
+
+  useEffect(() => {
+  if (!rawDeptRevenue || rawDeptRevenue.length === 0 || !departments || departments.length === 0) return;
+
+  const remapped = rawDeptRevenue.map(item => {
+    const deptObj = departments.find(d => String(d.department_id) === String(item.department_id));
+    const name = deptObj?.name || (item.department_id === null ? 'All Departments' : `Dept ${item.department_id}`);
+    return {
+      department: name,
+      revenue: parseFloat(item.total_revenue) || 0
+    };
+  });
+
+  setDeptRevenue(remapped);
+}, [departments, rawDeptRevenue]);
+
 
   const StatCard = ({ label, value, trend, trendUp, icon: Icon, color }) => {
     return (
@@ -498,6 +540,46 @@ const HealthcareDashboard = () => {
                     )}
                   </div>
                 </div>
+
+                {/* Revenue by Department Pie Chart */}
+<div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+  <h3 className="text-xl font-bold text-gray-900 mb-6">Revenue by Department</h3>
+  {loading.deptRevenue ? (
+    <LoadingSpinner />
+  ) : error.deptRevenue ? (
+    <ErrorMessage message={error.deptRevenue} />
+  ) : deptRevenue.length > 0 ? (
+    <ResponsiveContainer width="100%" height={320}>
+      <PieChart>
+        <Pie
+          data={deptRevenue}
+          cx="50%"
+          cy="50%"
+          labelLine={false}
+          label={({ department, revenue }) =>
+            `${department}: ₹${(revenue / 1000000).toFixed(1)}M`
+          }
+          outerRadius={110}
+          dataKey="revenue"
+        >
+          {deptRevenue.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={[
+                '#ef4444', '#22c55e', '#3b82f6', '#6366f1',
+                '#06b6d4', '#ec4899', '#f59e0b', '#a855f7'
+              ][index % 8]}
+            />
+          ))}
+        </Pie>
+        <Tooltip formatter={(value) => `₹${(value / 1000000).toFixed(1)}M`} />
+      </PieChart>
+    </ResponsiveContainer>
+  ) : (
+    <p className="text-gray-500 text-center py-8">No revenue data available</p>
+  )}
+</div>
+
 
                 {/* Recent Activities */}
                 <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
