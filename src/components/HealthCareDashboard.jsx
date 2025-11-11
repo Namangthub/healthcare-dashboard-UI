@@ -50,9 +50,9 @@ const API_BASE_URL = "https://healthcare-dashboard-n8rs.onrender.com/api";
 const HealthcareDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedDept, setSelectedDept] = useState(null);
+  const [, setSelectedDept] = useState(null);
   const [patientFilter, setPatientFilter] = useState("all");
-  const [dateRange, setDateRange] = useState("month");
+  // const [dateRange, setDateRange] = useState("month");
   const [loading, setLoading] = useState({});
   const [error, setError] = useState({});
   const [deptRevenue, setDeptRevenue] = useState([]);
@@ -69,14 +69,36 @@ const HealthcareDashboard = () => {
   const [appointmentTypes, setAppointmentTypes] = useState([]);
   const [vitalAlerts, setVitalAlerts] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [qualityMetrics, setQualityMetrics] = useState(null);
-  const [demographics, setDemographics] = useState(null);
+  const [ setQualityMetrics] = useState(null);
+  const [ setDemographics] = useState(null);
   const [inventory, setInventory] = useState(null);
+
+
+
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+
+  // 🔍 Filtered data based on search
+const filteredPatients = patients.filter((p) =>
+  p.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+);
+
+const filteredStaff = staff.filter((s) =>
+  s.fullName?.toLowerCase().includes(searchQuery.toLowerCase())
+);
+
+const filteredAppointments = appointments.filter(
+  (a) =>
+    a.patientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    a.doctorName?.toLowerCase().includes(searchQuery.toLowerCase())
+);
+
 
   // 💠 For demographic tabs
   const [activeDemoTab, setActiveDemoTab] = useState("age");
   const [demoData, setDemoData] = useState([]);
-  const [selectedDemoDept, setSelectedDemoDept] = useState("all");
+  const [selectedDemoDept] = useState("all");
   const COLORS = [
     "#ef4444",
     "#14b8a6",
@@ -116,6 +138,8 @@ const HealthcareDashboard = () => {
     }
   };
 
+
+  
   // Initial data load
   useEffect(() => {
     fetchData("/overview", "overview", setOverviewStats);
@@ -624,7 +648,7 @@ const HealthcareDashboard = () => {
         </nav>
 
         <div className="absolute bottom-6 left-4 right-4 space-y-2">
-          <button className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-slate-700/50 transition text-gray-300">
+          {/* <button className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-slate-700/50 transition text-gray-300">
             <Settings size={20} />
             {sidebarOpen && (
               <span className="text-sm font-medium">Settings</span>
@@ -633,7 +657,7 @@ const HealthcareDashboard = () => {
           <button className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl hover:bg-red-500/20 transition text-red-300">
             <LogOut size={20} />
             {sidebarOpen && <span className="text-sm font-medium">Logout</span>}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -656,20 +680,28 @@ const HealthcareDashboard = () => {
             </div>
             <div className="flex items-center space-x-6">
               <div className="hidden md:flex items-center space-x-3 bg-gray-100 px-4 py-2 rounded-lg">
-                <Search size={18} className="text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Search patients, doctors..."
-                  className="bg-transparent outline-none text-sm text-gray-700 w-64"
-                />
+  <Search size={18} className="text-gray-500" />
+  <input
+    type="text"
+    placeholder="Search patients, doctors..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="bg-transparent outline-none text-sm text-gray-700 w-64"
+  />
+  {searchQuery && (
+    <button onClick={() => setSearchQuery("")}>
+      <X size={16} className="text-gray-400 hover:text-gray-600" />
+    </button>
+  )}
+
               </div>
-              <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+              {/* <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
                 <Bell size={20} />
                 <span className="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
               </button>
               <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
                 <Download size={20} />
-              </button>
+              </button> */}
               <div className="flex items-center space-x-3 pl-6 border-l border-gray-200">
                 <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
                   AD
@@ -866,7 +898,7 @@ const HealthcareDashboard = () => {
                       </h3>
 
                       {/* Department Filter */}
-                      <select
+                      {/* <select
                         value={selectedDemoDept}
                         onChange={(e) => setSelectedDemoDept(e.target.value)}
                         className="border border-gray-300 text-sm text-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -877,7 +909,7 @@ const HealthcareDashboard = () => {
                             {dept.name}
                           </option>
                         ))}
-                      </select>
+                      </select> */}
                     </div>
 
                     {/* Tabs */}
@@ -914,7 +946,7 @@ const HealthcareDashboard = () => {
                             dataKey="count"
                             nameKey={nameKey}
                             labelLine={false}
-                            label={({ name, value, percent }) =>
+                            label={({ name,percent }) =>
                               `${name}: ${(percent * 100).toFixed(1)}%`
                             }
                           >
@@ -928,7 +960,7 @@ const HealthcareDashboard = () => {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(value, name, props) => {
+                            formatter={(value,) => {
                               const total = demoData.reduce(
                                 (a, b) => a + b.count,
                                 0
@@ -1164,9 +1196,10 @@ const HealthcareDashboard = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {patients.map((patient) => (
-                          <PatientRow key={patient.id} patient={patient} />
-                        ))}
+                        {filteredPatients.map((patient) => (
+  <PatientRow key={patient.id} patient={patient} />
+))}
+
                       </tbody>
                     </table>
                   </div>
@@ -1295,7 +1328,7 @@ const HealthcareDashboard = () => {
                               />
                               <YAxis stroke="#3b82f6" />
                               <Tooltip
-                                formatter={(value, name) =>
+                                formatter={(value) =>
                                   `${value} Appointments`
                                 }
                                 contentStyle={{
@@ -1368,7 +1401,8 @@ const HealthcareDashboard = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {appointments.map((appt) => (
+                         {filteredAppointments.map((appt) => (
+
                             <tr
                               key={appt.appointment_id}
                               className="border-b border-gray-100 hover:bg-gray-50 transition"
@@ -1449,9 +1483,10 @@ const HealthcareDashboard = () => {
                   <ErrorMessage message={error.staff} />
                 ) : staff.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {staff.map((member) => (
-                      <StaffCard key={member.id} member={member} />
-                    ))}
+                   {filteredStaff.map((member) => (
+  <StaffCard key={member.id} member={member} />
+))}
+
                   </div>
                 ) : (
                   <p className="text-gray-500 text-center py-16">
