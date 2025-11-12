@@ -181,16 +181,6 @@ export default function DepartmentTab() {
         )}
       </div>
 
-      {/* Department Cards */}
-      {departments.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {departments.map((d) => (
-            <DepartmentCard key={d.id || d.department_id} dept={d} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500 text-center py-16">No departments found</p>
-      )}
     </div>
   );
 }

@@ -21,17 +21,18 @@ export default function Sidebar({
   const navigate = useNavigate();
 
   // Default menu items (id values map to routes: /overview, /departments, etc.)
-  const menuItems = items && Array.isArray(items)
-    ? items
-    : [
-        { id: "overview", label: "Overview", icon: BarChart3 },
-        { id: "departments", label: "Departments", icon: Package },
-        { id: "appointments", label: "Appointments", icon: Calendar },
-        { id: "patients", label: "Patients", icon: Users },
-        { id: "staff", label: "Staff", icon: Heart },
-        { id: "vitals", label: "Vitals", icon: Activity },
-        { id: "financials", label: "Financials", icon: DollarSign },
-      ];
+  const menuItems =
+    items && Array.isArray(items)
+      ? items
+      : [
+          { id: "overview", label: "Overview", icon: BarChart3 },
+          { id: "departments", label: "Departments", icon: Package },
+          { id: "appointments", label: "Appointments", icon: Calendar },
+          { id: "patients", label: "Patients", icon: Users },
+          { id: "staff", label: "Staff", icon: Heart },
+          { id: "vitals", label: "Vitals", icon: Activity },
+          { id: "financials", label: "Financials", icon: DollarSign },
+        ];
 
   // helper to handle clicks: update parent active state AND navigate
   const handleClick = (item) => {
