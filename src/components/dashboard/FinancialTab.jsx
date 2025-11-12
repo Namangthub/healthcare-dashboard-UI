@@ -1,109 +1,167 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import axios from "axios";
 
-export default function FinancialTab({ financialData = [], loading, error }) {
-  // ✅ Always provide fallback data
-  const chartData = useMemo(() => {
-    let data = [];
+export default function FinancialTab() {
+  const [availableYears, setAvailableYears] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [financialData, setFinancialData] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    if (Array.isArray(financialData) && financialData.length > 0) {
-      const monthMap = {};
+  // 🌐 Backend API base URL
+  const API_BASE = "http://localhost:47815/api/financial";
 
-      financialData.forEach((item) => {
-        const date = item.date || item.month || item.createdAt || item.updatedAt || "";
-        const parsedDate = new Date(date);
-        if (!isNaN(parsedDate)) {
-          const month = parsedDate.toLocaleString("default", { month: "short" });
-          if (!monthMap[month]) monthMap[month] = { month, revenue: 0, expenses: 0 };
-          monthMap[month].revenue += Number(item.revenue) || 0;
-          monthMap[month].expenses += Number(item.expenses) || 0;
-        }
-      });
+  // ✅ Fetch all available years
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/years`);
+        const years = res.data.years || [];
+        setAvailableYears(years);
+        if (years.length > 0) setSelectedYear(years[0]); // select latest year automatically
+      } catch (err) {
+        console.error("Error fetching years:", err);
+        setError("Failed to load available years");
+      }
+    };
+    fetchYears();
+  }, []);
 
-      data = Object.values(monthMap).map((m) => ({
-        ...m,
-        revenue: m.revenue / 100000, // Convert to Lakhs
-        expenses: m.expenses / 100000,
-      }));
-    }
+  // ✅ Fetch financial data when selectedYear changes
+  useEffect(() => {
+    if (!selectedYear) return;
 
-    if (data.length === 0) {
-      data = [
-        { month: "Jan", revenue: 9.0, expenses: 7.5 },
-        { month: "Feb", revenue: 10.5, expenses: 8.8 },
-        { month: "Mar", revenue: 11.2, expenses: 9.4 },
-        { month: "Apr", revenue: 9.98, expenses: 8.26 },
-        { month: "May", revenue: 10.9, expenses: 9.3 },
-        { month: "Jun", revenue: 10.4, expenses: 8.9 },
-        { month: "Jul", revenue: 11.6, expenses: 9.7 },
-        { month: "Aug", revenue: 12.1, expenses: 9.9 },
-        { month: "Sep", revenue: 11.5, expenses: 9.4 },
-        { month: "Oct", revenue: 10.7, expenses: 8.9 },
-        { month: "Nov", revenue: 11.2, expenses: 9.3 },
-        { month: "Dec", revenue: 11.8, expenses: 9.8 },
-      ];
-    }
+    const fetchFinancialData = async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-    return data;
+        // 🔹 Monthly summary
+        const monthlyRes = await axios.get(`${API_BASE}/summary/monthly/year/${selectedYear}`);
+        setFinancialData(monthlyRes.data.data || []);
+
+        // 🔹 Yearly summary (for stat cards)
+        const summaryRes = await axios.get(`${API_BASE}/summary/year/${selectedYear}`);
+        setSummary(summaryRes.data.data);
+      } catch (err) {
+        console.error("Error fetching financial data:", err);
+        setError(err.response?.data?.message || "Failed to fetch financial data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFinancialData();
+  }, [selectedYear]);
+
+  // ✅ Prepare chart data
+   const chartData = useMemo(() => {
+    if (!Array.isArray(financialData) || financialData.length === 0) return [];
+
+    return financialData.map((item, index) => {
+      const monthLabel =
+        typeof item.month_name === "string"
+          ? item.month_name.slice(0, 3)
+          : `M${index + 1}`; // fallback if month_name is null
+
+      return {
+        month: monthLabel,
+        revenue: (item.total_revenue || 0) / 100000,
+        expenses: (item.total_expenses || 0) / 100000,
+      };
+    });
   }, [financialData]);
 
+  // ✅ Utility functions
   const formatCr = (val) => `₹${(val / 1e7).toFixed(2)}Cr`;
+  const totalRevenue = summary?.total_revenue || 0;
+  const totalExpenses = summary?.total_expenses || 0;
+  const netProfit = summary?.total_profit || totalRevenue - totalExpenses;
+  const profitMargin = totalRevenue ? ((netProfit / totalRevenue) * 100).toFixed(2) : 0;
 
-  // ✅ Highcharts Config for Financial Trends
-  const financialChartOptions = useMemo(() => ({
-    chart: { type: "area", backgroundColor: "transparent" },
-    title: { text: "" },
-    xAxis: {
-      categories: chartData.map((d) => d.month),
-      tickmarkPlacement: "on",
-      title: { enabled: false },
-      labels: { style: { color: "#6b7280" } },
-    },
-    yAxis: {
-      title: { text: "Amount (Lakhs)" },
-      labels: { style: { color: "#6b7280" } },
-    },
-    tooltip: {
-      shared: true,
-      valuePrefix: "₹",
-      valueSuffix: " L",
-      backgroundColor: "#fff",
-      borderRadius: 8,
-      borderColor: "#e5e7eb",
-    },
-    legend: { itemStyle: { color: "#374151", fontWeight: "bold" } },
-    credits: { enabled: false },
-    plotOptions: {
-      area: {
-        fillOpacity: 0.25,
-        marker: { enabled: true, radius: 3 },
+  // ✅ Highcharts Configuration
+  const financialChartOptions = useMemo(
+    () => ({
+      chart: { type: "area", backgroundColor: "transparent" },
+      accessibility: { enabled: false },
+      title: { text: "" },
+      xAxis: {
+        categories: chartData.map((d) => d.month),
+        tickmarkPlacement: "on",
+        title: { enabled: false },
+        labels: { style: { color: "#6b7280" } },
       },
-    },
-    series: [
-      {
-        name: "Revenue",
-        data: chartData.map((d) => d.revenue),
-        color: "#3b82f6",
+      yAxis: {
+        title: { text: "Amount (Lakhs)" },
+        labels: { style: { color: "#6b7280" } },
       },
-      {
-        name: "Expenses",
-        data: chartData.map((d) => d.expenses),
-        color: "#ef4444",
+      tooltip: {
+        shared: true,
+        valuePrefix: "₹",
+        valueSuffix: " L",
+        backgroundColor: "#fff",
+        borderRadius: 8,
+        borderColor: "#e5e7eb",
       },
-    ],
-  }), [chartData]);
+      legend: { itemStyle: { color: "#374151", fontWeight: "bold" } },
+      credits: { enabled: false },
+      plotOptions: {
+        area: {
+          fillOpacity: 0.25,
+          marker: { enabled: true, radius: 3 },
+        },
+      },
+      series: [
+        {
+          name: "Revenue",
+          data: chartData.map((d) => d.revenue),
+          color: "#3b82f6",
+        },
+        {
+          name: "Expenses",
+          data: chartData.map((d) => d.expenses),
+          color: "#ef4444",
+        },
+      ],
+    }),
+    [chartData]
+  );
 
   return (
     <div className="space-y-8">
-      {/* Stat Cards */}
+      {/* 🔹 Year Selector */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Financial Overview</h2>
+        <div>
+          <label className="text-sm text-gray-600 mr-2">Select Year:</label>
+          <select
+            value={selectedYear || ""}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {availableYears?.length > 0 ? (
+              availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))
+            ) : (
+              <option disabled>Loading...</option>
+            )}
+          </select>
+        </div>
+      </div>
+
+      {/* 🔹 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-blue-600 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
           <div>
             <p className="text-sm opacity-90">Total Revenue</p>
-            <h3 className="text-3xl font-extrabold">{formatCr(2049800000)}</h3>
-            <p className="text-xs mt-1 opacity-90">+12.5%</p>
+            <h3 className="text-3xl font-extrabold">{formatCr(totalRevenue)}</h3>
           </div>
           <DollarSign size={32} />
         </div>
@@ -111,8 +169,7 @@ export default function FinancialTab({ financialData = [], loading, error }) {
         <div className="bg-red-600 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
           <div>
             <p className="text-sm opacity-90">Total Expenses</p>
-            <h3 className="text-3xl font-extrabold">{formatCr(1672500000)}</h3>
-            <p className="text-xs mt-1 opacity-90">+8.3%</p>
+            <h3 className="text-3xl font-extrabold">{formatCr(totalExpenses)}</h3>
           </div>
           <TrendingDown size={32} />
         </div>
@@ -120,8 +177,7 @@ export default function FinancialTab({ financialData = [], loading, error }) {
         <div className="bg-green-600 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
           <div>
             <p className="text-sm opacity-90">Net Profit</p>
-            <h3 className="text-3xl font-extrabold">{formatCr(377330000)}</h3>
-            <p className="text-xs mt-1 opacity-90">+18.2%</p>
+            <h3 className="text-3xl font-extrabold">{formatCr(netProfit)}</h3>
           </div>
           <TrendingUp size={32} />
         </div>
@@ -129,23 +185,27 @@ export default function FinancialTab({ financialData = [], loading, error }) {
         <div className="bg-purple-600 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
           <div>
             <p className="text-sm opacity-90">Profit Margin</p>
-            <h3 className="text-3xl font-extrabold">18.4%</h3>
-            <p className="text-xs mt-1 opacity-90">+3.2%</p>
+            <h3 className="text-3xl font-extrabold">{profitMargin}%</h3>
           </div>
           <DollarSign size={32} />
         </div>
       </div>
 
-      {/* Highcharts Line (Area) Chart */}
+      {/* 🔹 Chart Section */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Financial Trends (Highcharts)</h3>
+        <h3 className="text-lg font-semibold mb-4">
+          Financial Trends ({selectedYear})
+        </h3>
 
         {loading ? (
           <p className="text-gray-500 text-sm">Loading financial data…</p>
         ) : error ? (
           <p className="text-red-500 text-sm">Error: {error}</p>
         ) : (
-          <HighchartsReact highcharts={Highcharts} options={financialChartOptions} />
+          <HighchartsReact
+            highcharts={Highcharts}
+            options={financialChartOptions}
+          />
         )}
       </div>
     </div>
