@@ -29,8 +29,8 @@ export default function DepartmentTab() {
         setLoading({ departments: true, stats: true });
 
         const [deptRes, statsRes] = await Promise.all([
-          axios.get("http://localhost:47815/api/departments"),
-          axios.get("http://localhost:47815/api/departments/stats"),
+          axios.get("https://healthcare-dashboard-n8rs.onrender.com/api/departments"),
+          axios.get("https://healthcare-dashboard-n8rs.onrender.com/api/departments/stats"),
         ]);
 
         const deptData = deptRes.data || [];

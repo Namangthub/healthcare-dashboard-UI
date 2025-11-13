@@ -21,7 +21,7 @@ export default function AppointmentTab() {
   const [loading, setLoading] = useState({ appointments: false });
   const [error, setError] = useState({ appointments: null });
 
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:47815";
+  const API_URL = import.meta.env.VITE_API_URL || "https://healthcare-dashboard-n8rs.onrender.com";
 
   // Fetch Appointments
   useEffect(() => {

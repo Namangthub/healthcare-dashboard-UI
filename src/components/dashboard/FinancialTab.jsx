@@ -14,7 +14,7 @@ export default function FinancialTab() {
   const [error, setError] = useState("");
 
   // 🌐 Backend API base URL
-  const API_BASE = "http://localhost:47815/api/financial";
+  const API_BASE = "https://healthcare-dashboard-n8rs.onrender.com/api/financial";
 
   // ✅ Fetch all available years
   useEffect(() => {
